@@ -14,6 +14,7 @@ const (
 	MongoURI       string = "mongodb://localhost:27017"
 	DatabaseName   string = "golangInterview"
 	CollectionName string = "posts"
+	CounterName    string = "counters"
 )
 
 // ConnectMongoDB creates and returns a connection to the MongoDB

@@ -1,8 +1,9 @@
 package entity
 
+// Post represents a blog post
 type Post struct {
-	ID    int64  `json:"id" bson:"id"`
-	Title string `json:"title" bson:"title"`
-	Text  string `json:"text" bson:"text"`
-	/*test*/
+	ID      int    `bson:"id"`
+	Title   string `bson:"title"`
+	Content string `bson:"content"`
+	Author  string `bson:"author"`
 }
