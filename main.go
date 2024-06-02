@@ -1,11 +1,11 @@
 package main
 
 import (
-	"log"
-	"net/http"
-
+	"finalProjStart/handlers"
 	"finalProjStart/repository"
 	"github.com/gorilla/mux"
+	"log"
+	"net/http"
 )
 
 var (
@@ -22,8 +22,11 @@ func init() {
 
 func handleRequests() {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/posts", getPosts).Methods("GET")
-	router.HandleFunc("/api/posts", addPost).Methods("POST")
+	router.HandleFunc("/api/posts", handlers.GetPosts(repo)).Methods("GET")
+	router.HandleFunc("/api/posts/{id}", handlers.GetPostByID(repo)).Methods("GET")
+	router.HandleFunc("/api/posts", handlers.AddPost(repo)).Methods("POST")
+	router.HandleFunc("/api/posts/{id}", handlers.UpdatePost(repo)).Methods("PUT")
+	router.HandleFunc("/api/posts/{id}", handlers.DeletePost(repo)).Methods("DELETE")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
