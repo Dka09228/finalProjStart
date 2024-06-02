@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
+	"finalProjStart/db"
 	"finalProjStart/entity"
-	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type PostRepository interface {
@@ -20,34 +20,18 @@ type repo struct {
 	client *mongo.Client
 }
 
-const (
-	databaseName   string = "golangInterview"
-	collectionName string = "posts"
-	mongoURI       string = "mongodb://localhost:27017"
-)
-
 // NewPostRepository creates a new PostRepository with MongoDB client
 func NewPostRepository() (PostRepository, error) {
-	clientOptions := options.Client().ApplyURI(mongoURI)
-	client, err := mongo.Connect(context.TODO(), clientOptions)
+	client, err := db.ConnectMongoDB()
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
 		return nil, err
 	}
 
-	// Check the connection
-	err = client.Ping(context.TODO(), nil)
-	if err != nil {
-		log.Fatalf("Failed to ping MongoDB: %v", err)
-		return nil, err
-	}
-
-	fmt.Println("Connected to MongoDB!")
 	return &repo{client: client}, nil
 }
 
 func (r *repo) Save(post *entity.Post) (*entity.Post, error) {
-	collection := r.client.Database(databaseName).Collection(collectionName)
+	collection := r.client.Database(db.DatabaseName).Collection(db.CollectionName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -61,7 +45,7 @@ func (r *repo) Save(post *entity.Post) (*entity.Post, error) {
 }
 
 func (r *repo) FindAll() ([]entity.Post, error) {
-	collection := r.client.Database(databaseName).Collection(collectionName)
+	collection := r.client.Database(db.DatabaseName).Collection(db.CollectionName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

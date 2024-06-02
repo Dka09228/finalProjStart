@@ -2,26 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"finalProjStart/entity"
-	"finalProjStart/repository"
 	"math/rand"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	"log"
+	"finalProjStart/entity"
 )
-
-var (
-	repo repository.PostRepository
-)
-
-func init() {
-	var err error
-	repo, err = repository.NewPostRepository()
-	if err != nil {
-		log.Fatalf("Failed to initialize repository: %v", err)
-	}
-}
 
 func getPosts(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("Content-Type", "application/json")
@@ -53,16 +38,4 @@ func addPost(response http.ResponseWriter, request *http.Request) {
 	}
 	response.WriteHeader(http.StatusOK)
 	json.NewEncoder(response).Encode(post)
-}
-
-func handleRequests() {
-	router := mux.NewRouter()
-	router.HandleFunc("/api/posts", getPosts).Methods("GET")
-	router.HandleFunc("/api/posts", addPost).Methods("POST")
-	log.Fatal(http.ListenAndServe(":8000", router))
-}
-
-func main() {
-	log.Println("Starting server...")
-	handleRequests()
 }
