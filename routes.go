@@ -29,7 +29,7 @@ func addPost(response http.ResponseWriter, request *http.Request) {
 		response.Write([]byte(`{"error":"Error Unmarshalling Data"}`))
 		return
 	}
-	post.ID = rand.Int63()
+	post.ID = rand.Int()
 	_, err = repo.Save(&post)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
