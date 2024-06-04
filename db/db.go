@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	DatabaseName string = "golangInterview"
 	DatabaseName   string = "golang-test"
 	CollectionName string = "premleague-test"
 	CounterName    string = "counters"
