@@ -42,7 +42,7 @@ func main() {
 	defer client.Disconnect(context.Background())
 
 	// URL of the page to scrape
-	url := "https://fbref.com/en/comps/9/Premier-League-Stats"
+	url := "https://fbref.com/en/comps/12/La-Liga-Stats"
 
 	// Fetch the page
 	doc, err := goquery.NewDocument(url)
@@ -51,7 +51,7 @@ func main() {
 	}
 
 	// Find the table
-	doc.Find("table#results2023-202491_overall tbody tr").Each(func(i int, s *goquery.Selection) {
+	doc.Find("table#results2023-2024121_overall tbody tr").Each(func(i int, s *goquery.Selection) {
 		teamStats := TeamStats{}
 
 		// Scraping the data
@@ -106,7 +106,7 @@ func ConnectMongoDB() (*mongo.Client, error) {
 
 // InsertTeamStats inserts the given team stats into the MongoDB collection
 func InsertTeamStats(client *mongo.Client, teamStats TeamStats) error {
-	collection := client.Database("golang-test").Collection("premleague-test")
+	collection := client.Database("golang-test").Collection("laliga-test")
 	_, err := collection.InsertOne(context.Background(), teamStats)
 	if err != nil {
 		return err
