@@ -9,10 +9,8 @@ import (
 	"time"
 )
 
-// Level represents the severity level of a log entry.
 type Level int8
 
-// Constants for different log levels.
 const (
 	LevelInfo  Level = iota // Has the value of 0.
 	LevelError              // Has the value of 1.

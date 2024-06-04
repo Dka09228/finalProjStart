@@ -21,12 +21,14 @@ func AuthMiddleware(next http.HandlerFunc, roles ...string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
+			logger.PrintInfo("Authorization header missing", nil)
 			errors.HandleUnauthorized(w)
 			return
 		}
 
 		headerParts := strings.Split(authHeader, " ")
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			logger.PrintInfo("Invalid Authorization header format", nil)
 			errors.HandleUnauthorized(w)
 			return
 		}
@@ -37,16 +39,31 @@ func AuthMiddleware(next http.HandlerFunc, roles ...string) http.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
+			logger.PrintInfo("Invalid token", map[string]string{"error": err.Error()})
 			errors.HandleUnauthorized(w)
 			return
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			if !containsRole(roles, claims["role"].(string)) {
+			role, ok := claims["role"].(string)
+			if !ok {
+				logger.PrintInfo("Role claim missing or invalid", nil)
+				errors.HandleUnauthorized(w)
+				return
+			}
+
+			role = strings.TrimSpace(role) // Trim whitespace from the role
+			logger.PrintInfo("Token role", map[string]string{"role": role})
+
+			if !containsRole(roles, role) {
+				logger.PrintInfo("Role not permitted", map[string]string{"role": role})
 				errors.HandleForbidden(w)
 				return
 			}
+
+			logger.PrintInfo("Role permitted", map[string]string{"role": role})
 		} else {
+			logger.PrintInfo("Token claims not valid", nil)
 			errors.HandleUnauthorized(w)
 			return
 		}
