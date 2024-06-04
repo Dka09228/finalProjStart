@@ -1,9 +1,14 @@
+// entity/post.go
 package entity
 
-// Post represents a blog post
+import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"time"
+)
+
 type Post struct {
-	ID      int    `bson:"id"`
-	Title   string `bson:"title"`
-	Content string `bson:"content"`
-	Author  string `bson:"author"`
+	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Title     string             `json:"title"`
+	Content   string             `json:"content"`
+	CreatedAt time.Time          `json:"created_at"`
 }

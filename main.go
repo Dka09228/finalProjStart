@@ -1,32 +1,50 @@
 package main
 
 import (
+	"finalProjStart/db"
 	"finalProjStart/handlers"
+	"finalProjStart/middleware"
 	"finalProjStart/repository"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 )
 
-var (
-	repo repository.PostRepository
-)
+var postRepo repository.PostRepository
+var userRepo repository.UserRepository
 
 func init() {
-	var err error
-	repo, err = repository.NewPostRepository()
+	client, err := db.ConnectMongoDB()
 	if err != nil {
-		log.Fatalf("Failed to initialize repository: %v", err)
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
+
+	database := client.Database(db.DatabaseName)
+
+	// Initialize repositories
+	postRepo = repository.NewMongoDBPostRepository(database)
+	userRepo = repository.NewMongoDBUserRepository(database)
+
+	// Initialize handlers with repositories
+	handlers.InitUserRepository(userRepo)
+	handlers.InitPostRepository(postRepo)
 }
 
 func handleRequests() {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/posts", handlers.GetPosts(repo)).Methods("GET")
-	router.HandleFunc("/api/posts/{id}", handlers.GetPostByID(repo)).Methods("GET")
-	router.HandleFunc("/api/posts", handlers.AddPost(repo)).Methods("POST")
-	router.HandleFunc("/api/posts/{id}", handlers.UpdatePost(repo)).Methods("PUT")
-	router.HandleFunc("/api/posts/{id}", handlers.DeletePost(repo)).Methods("DELETE")
+
+	// Routes for authentication and user management
+	router.HandleFunc("/register", handlers.RegisterUser).Methods("POST")
+	router.HandleFunc("/login", handlers.LoginUser).Methods("POST")
+	router.HandleFunc("/logout", handlers.LogoutUser).Methods("POST") // Endpoint for logout
+
+	// Routes for posts management with authentication middleware
+	router.HandleFunc("/api/posts", middleware.AuthMiddleware(handlers.GetPosts, "user")).Methods("GET")
+	router.HandleFunc("/api/posts/{id}", middleware.AuthMiddleware(handlers.GetPostByID, "user")).Methods("GET")
+	router.HandleFunc("/api/posts", middleware.AuthMiddleware(handlers.AddPost, "admin")).Methods("POST")
+	router.HandleFunc("/api/posts/{id}", middleware.AuthMiddleware(handlers.UpdatePost, "admin")).Methods("PUT")
+	router.HandleFunc("/api/posts/{id}", middleware.AuthMiddleware(handlers.DeletePost, "admin")).Methods("DELETE")
+
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
