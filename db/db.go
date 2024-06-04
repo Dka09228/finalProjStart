@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	MongoURI       string = "mongodb+srv://alisheribraev03:m3Zi0rAnHCMJpm0f@alish.ahqrfiy.mongodb.net/?retryWrites=true&w=majority&appName=Alish"
 	DatabaseName   string = "golang-test"
 	CollectionName string = "premleague-test"
 	CounterName    string = "counters"
