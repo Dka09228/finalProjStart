@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	postRepo repository.PostRepository
-	userRepo repository.UserRepository
-	logger   *jsonlog.Logger
+	postRepo   repository.PostRepository
+	userRepo   repository.UserRepository
+	scrapeRepo repository.ScrapeRepository
+	logger     *jsonlog.Logger
 )
 
 func init() {
@@ -30,9 +31,11 @@ func init() {
 
 	postRepo = repository.NewMongoDBPostRepository(database)
 	userRepo = repository.NewMongoDBUserRepository(database)
+	scrapeRepo = repository.NewScrapeRepository(client, logger)
 
 	handlers.InitUserRepository(userRepo)
 	handlers.InitPostRepository(postRepo)
+	handlers.InitScrapeRepository(scrapeRepo)
 }
 
 func handleRequests() {
@@ -43,6 +46,8 @@ func handleRequests() {
 	router.HandleFunc("/register", handlers.RegisterUser).Methods("POST")
 	router.HandleFunc("/login", handlers.LoginUser).Methods("POST")
 	router.HandleFunc("/logout", handlers.LogoutUser).Methods("POST") // Endpoint for logout
+
+	router.HandleFunc("/api/scrape", middleware.AuthMiddleware(handlers.ScrapeData, "user", "admin")).Methods("POST")
 
 	router.HandleFunc("/api/posts", middleware.AuthMiddleware(handlers.GetPosts, "user", "admin")).Methods("GET")
 
