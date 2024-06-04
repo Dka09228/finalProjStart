@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	MongoURI     string = "mongodb://localhost:27017"
 	DatabaseName string = "golangInterview"
+	DatabaseName   string = "golang-test"
+	CollectionName string = "premleague-test"
+	CounterName    string = "counters"
 )
 
 func ConnectMongoDB() (*mongo.Client, error) {
