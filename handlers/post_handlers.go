@@ -7,17 +7,77 @@ import (
 	"finalProjStart/jsonlog"
 	"finalProjStart/repository"
 	"github.com/gorilla/mux"
+	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 )
 
 var (
 	postRepo   repository.PostRepository
-	postLogger *jsonlog.Logger // Use a unique name to avoid redeclaration
+	postLogger *jsonlog.Logger
+	amqpURI    = "amqp://guest:guest@localhost:5672/"
+	queueName  = "post_notifications"
 )
 
 func InitPostRepository(repo repository.PostRepository) {
 	postRepo = repo
+}
+
+func InitRabbitMQ() (*amqp.Connection, *amqp.Channel, error) {
+	conn, err := amqp.Dial(amqpURI)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return conn, ch, nil
+}
+
+func setupQueue(ch *amqp.Channel) error {
+	_, err := ch.QueueDeclare(
+		queueName, // Queue name
+		true,      // Durable: queue survives server restarts
+		false,     // Delete when unused
+		false,     // Exclusive: used by only one connection and deleted when that connection closes
+		false,     // No-wait
+		nil,       // Arguments
+	)
+	return err
+}
+
+func NotifyNewPost(post *entity.Post) error {
+	conn, ch, err := InitRabbitMQ()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	defer ch.Close()
+
+	err = setupQueue(ch)
+	if err != nil {
+		return err
+	}
+
+	body, err := json.Marshal(post)
+	if err != nil {
+		return err
+	}
+
+	err = ch.Publish(
+		"",        // Exchange
+		queueName, // Routing key
+		false,     // Mandatory
+		false,     // Immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		},
+	)
+	return err
 }
 
 func GetPosts(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +137,13 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		errors.SendErrorResponse(w, errors.NewAPIError(http.StatusInternalServerError, "Failed to save post"))
 		return
 	}
+
+	go func() {
+		err := NotifyNewPost(&post)
+		if err != nil {
+			postLogger.PrintError(err, map[string]string{"context": "notifying new post"})
+		}
+	}()
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(post)

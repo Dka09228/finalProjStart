@@ -1,4 +1,3 @@
-// entity/post.go
 package entity
 
 import (
@@ -7,8 +6,8 @@ import (
 )
 
 type Post struct {
-	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Title     string             `json:"title"`
-	Content   string             `json:"content"`
-	CreatedAt time.Time          `json:"created_at"`
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Title     string             `bson:"title" json:"title"`
+	Content   string             `bson:"content" json:"content"`
+	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
 }

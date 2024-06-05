@@ -36,6 +36,13 @@ func init() {
 	handlers.InitUserRepository(userRepo)
 	handlers.InitPostRepository(postRepo)
 	handlers.InitScrapeRepository(scrapeRepo)
+
+	// Initialize RabbitMQ
+	rabbitMQURL := "amqp://guest:guest@localhost:5672/"
+	err = jsonlog.InitRabbitMQ(rabbitMQURL)
+	if err != nil {
+		logger.PrintFatal(err, nil)
+	}
 }
 
 func handleRequests() {
@@ -61,5 +68,8 @@ func handleRequests() {
 }
 
 func main() {
+	// Ensure RabbitMQ is closed when the application exits
+	defer jsonlog.CloseRabbitMQ()
+
 	handleRequests()
 }
