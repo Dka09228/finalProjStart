@@ -5,6 +5,7 @@ import (
 	"finalProjStart/jsonlog"
 	"finalProjStart/repository"
 	"fmt"
+	"github.com/gorilla/mux"
 	"net/http"
 )
 
@@ -44,4 +45,57 @@ func ScrapeData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "Data scraped and stored successfully")
 	scrapeLogger.PrintInfo("Data scraped and stored successfully", nil)
+}
+
+func GetTeamStatsByID(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	collectionName := r.URL.Query().Get("collection")
+
+	teamStats, err := scrapeRepo.GetTeamStatsByID(id, collectionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(teamStats)
+}
+
+func GetTeamStatsByTeamName(w http.ResponseWriter, r *http.Request) {
+	teamName := mux.Vars(r)["team"]
+	collectionName := r.URL.Query().Get("collection")
+
+	teamStats, err := scrapeRepo.GetTeamStatsByTeamName(teamName, collectionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(teamStats)
+}
+
+func GetLeagueByCollectionName(w http.ResponseWriter, r *http.Request) {
+	collectionName := r.URL.Query().Get("collection")
+
+	league, err := scrapeRepo.GetLeagueByCollectionName(collectionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(league)
+}
+
+func DeleteLeague(w http.ResponseWriter, r *http.Request) {
+	collectionName := r.URL.Query().Get("collection")
+
+	err := scrapeRepo.DeleteLeague(collectionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -48,6 +48,10 @@ func handleRequests() {
 	router.HandleFunc("/logout", handlers.LogoutUser).Methods("POST") // Endpoint for logout
 
 	router.HandleFunc("/api/scrape", middleware.AuthMiddleware(handlers.ScrapeData, "user", "admin")).Methods("POST")
+	router.HandleFunc("/api/teamstats/{id}", middleware.AuthMiddleware(handlers.GetTeamStatsByID, "user", "admin")).Methods("GET")
+	router.HandleFunc("/api/teamstats/team/{team}", middleware.AuthMiddleware(handlers.GetTeamStatsByTeamName, "user", "admin")).Methods("GET")
+	router.HandleFunc("/api/league", middleware.AuthMiddleware(handlers.GetLeagueByCollectionName, "user", "admin")).Methods("GET")
+	router.HandleFunc("/api/league", middleware.AuthMiddleware(handlers.DeleteLeague, "user", "admin")).Methods("DELETE")
 
 	router.HandleFunc("/api/posts", middleware.AuthMiddleware(handlers.GetPosts, "user", "admin")).Methods("GET")
 
