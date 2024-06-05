@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -38,6 +39,10 @@ type TeamStats struct {
 
 type ScrapeRepository interface {
 	ScrapeAndStoreData(url, tableID, collectionName string) error
+	GetTeamStatsByID(id string, collectionName string) (*TeamStats, error)
+	GetTeamStatsByTeamName(teamName, collectionName string) (*TeamStats, error)
+	GetLeagueByCollectionName(collectionName string) ([]TeamStats, error)
+	DeleteLeague(collectionName string) error
 }
 
 type scrapeRepository struct {
@@ -148,4 +153,73 @@ func InsertTeamStats(client *mongo.Client, teamStats TeamStats, collectionName s
 	opts := options.Update().SetUpsert(true)
 	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	return err
+}
+
+func (r *scrapeRepository) GetTeamStatsByID(id string, collectionName string) (*TeamStats, error) {
+	collection := r.client.Database(db.DatabaseName).Collection(collectionName)
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+
+	var teamStats TeamStats
+	err = collection.FindOne(context.Background(), bson.M{"_id": objectID}).Decode(&teamStats)
+	if err != nil {
+		return nil, err
+	}
+
+	return &teamStats, nil
+}
+
+func (r *scrapeRepository) GetTeamStatsByTeamName(teamName, collectionName string) (*TeamStats, error) {
+	collection := r.client.Database(db.DatabaseName).Collection(collectionName)
+
+	teamName = strings.TrimSpace(teamName)
+	teamName = strings.ReplaceAll(teamName, "-", " ")
+	filter := bson.M{"team": bson.M{"$regex": `(?i)^` + teamName + `$`}}
+
+	var teamStats TeamStats
+	err := collection.FindOne(context.Background(), filter).Decode(&teamStats)
+	if err != nil {
+		return nil, err
+	}
+
+	return &teamStats, nil
+}
+
+func (r *scrapeRepository) GetLeagueByCollectionName(collectionName string) ([]TeamStats, error) {
+	collection := r.client.Database(db.DatabaseName).Collection(collectionName)
+
+	cursor, err := collection.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	var league []TeamStats
+	for cursor.Next(context.Background()) {
+		var teamStats TeamStats
+		err := cursor.Decode(&teamStats)
+		if err != nil {
+			return nil, err
+		}
+		league = append(league, teamStats)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return league, nil
+}
+
+func (r *scrapeRepository) DeleteLeague(collectionName string) error {
+	collection := r.client.Database(db.DatabaseName).Collection(collectionName)
+
+	_, err := collection.DeleteMany(context.Background(), bson.M{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
