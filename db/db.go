@@ -11,13 +11,12 @@ import (
 )
 
 const (
-	MongoURI       string = "mongodb://localhost:27017"
-	DatabaseName   string = "golangInterview"
-	CollectionName string = "posts"
-	CounterName    string = "counters"
+	MongoURI       string = "mongodb+srv://alisheribraev03:m3Zi0rAnHCMJpm0f@alish.ahqrfiy.mongodb.net/?retryWrites=true&w=majority&appName=Alish"
+	DatabaseName   string = "golang-test"
+	CollectionName string = "premleague-test"
+	CounterName    string = "counters" //test
 )
 
-// ConnectMongoDB creates and returns a connection to the MongoDB
 func ConnectMongoDB() (*mongo.Client, error) {
 	clientOptions := options.Client().ApplyURI(MongoURI)
 	client, err := mongo.Connect(context.TODO(), clientOptions)

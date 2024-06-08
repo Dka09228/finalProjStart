@@ -2,166 +2,109 @@ package repository
 
 import (
 	"context"
-	"finalProjStart/db"
+	"errors"
 	"finalProjStart/entity"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"time"
 )
 
 type PostRepository interface {
-	Save(*entity.Post) (*entity.Post, error)
+	Save(post *entity.Post) (*entity.Post, error)
 	FindAll() ([]entity.Post, error)
-	FindByID(int) (*entity.Post, error)
-	Update(int, *entity.Post) (*entity.Post, error)
-	Delete(int) error
+	FindByID(id primitive.ObjectID) (*entity.Post, error)
+	Update(post *entity.Post) error
+	Delete(id primitive.ObjectID) error
 }
 
-type repo struct {
-	client *mongo.Client
+type MongoDBPostRepository struct {
+	collection *mongo.Collection
 }
 
-// NewPostRepository creates a new PostRepository with MongoDB client
-func NewPostRepository() (PostRepository, error) {
-	client, err := db.ConnectMongoDB()
-	if err != nil {
-		return nil, err
+func NewMongoDBPostRepository(database *mongo.Database) PostRepository {
+	collection := database.Collection("posts")
+	return &MongoDBPostRepository{
+		collection: collection,
 	}
-
-	return &repo{client: client}, nil
 }
 
-// getNextSequence generates the next auto-increment ID
-func (r *repo) getNextSequence() (int, error) {
-	collection := r.client.Database(db.DatabaseName).Collection(db.CounterName)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (repo *MongoDBPostRepository) Save(post *entity.Post) (*entity.Post, error) {
+	post.CreatedAt = time.Now()
 
-	var result struct {
-		Seq int `bson:"seq"`
-	}
-
-	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
-	filter := bson.M{"_id": db.CollectionName}
-	update := bson.M{"$inc": bson.M{"seq": 1}}
-
-	err := collection.FindOneAndUpdate(ctx, filter, update, opts).Decode(&result)
+	_, err := repo.collection.InsertOne(context.TODO(), post)
 	if err != nil {
-		return 0, err
-	}
-
-	return result.Seq, nil
-}
-
-func (r *repo) Save(post *entity.Post) (*entity.Post, error) {
-	collection := r.client.Database(db.DatabaseName).Collection(db.CollectionName)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	id, err := r.getNextSequence()
-	if err != nil {
-		log.Fatalf("Failed to get next sequence: %v", err)
-		return nil, err
-	}
-	post.ID = id
-
-	_, err = collection.InsertOne(ctx, post)
-	if err != nil {
-		log.Fatalf("Failed to insert a new post: %v", err)
+		log.Printf("Error inserting post: %v\n", err)
 		return nil, err
 	}
 
 	return post, nil
 }
 
-func (r *repo) FindAll() ([]entity.Post, error) {
-	collection := r.client.Database(db.DatabaseName).Collection(db.CollectionName)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (repo *MongoDBPostRepository) FindAll() ([]entity.Post, error) {
+	var posts []entity.Post
 
-	cursor, err := collection.Find(ctx, bson.M{})
+	cur, err := repo.collection.Find(context.TODO(), bson.D{})
 	if err != nil {
-		log.Fatalf("Failed to find posts: %v", err)
+		log.Printf("Error finding all posts: %v\n", err)
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer cur.Close(context.TODO())
 
-	var posts []entity.Post
-	for cursor.Next(ctx) {
+	for cur.Next(context.TODO()) {
 		var post entity.Post
-		err := cursor.Decode(&post)
+		err := cur.Decode(&post)
 		if err != nil {
-			log.Fatalf("Failed to decode post: %v", err)
+			log.Printf("Error decoding post: %v\n", err)
 			return nil, err
 		}
 		posts = append(posts, post)
 	}
 
-	if err := cursor.Err(); err != nil {
-		log.Fatalf("Cursor error: %v", err)
+	if err := cur.Err(); err != nil {
+		log.Printf("Cursor error: %v\n", err)
 		return nil, err
 	}
 
 	return posts, nil
 }
 
-func (r *repo) FindByID(id int) (*entity.Post, error) {
-	collection := r.client.Database(db.DatabaseName).Collection(db.CollectionName)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (repo *MongoDBPostRepository) FindByID(id primitive.ObjectID) (*entity.Post, error) {
 	var post entity.Post
-	filter := bson.M{"id": id}
-	err := collection.FindOne(ctx, filter).Decode(&post)
+	filter := bson.D{{"_id", id}}
+
+	err := repo.collection.FindOne(context.TODO(), filter).Decode(&post)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
 		}
-		log.Fatalf("Failed to find post by ID: %v", err)
+		log.Printf("Error finding post by ID: %v\n", err)
 		return nil, err
 	}
 
 	return &post, nil
 }
 
-func (r *repo) Update(id int, updatedPost *entity.Post) (*entity.Post, error) {
-	collection := r.client.Database(db.DatabaseName).Collection(db.CollectionName)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (repo *MongoDBPostRepository) Update(post *entity.Post) error {
+	filter := bson.D{{"_id", post.ID}}
+	update := bson.D{{"$set", post}}
 
-	filter := bson.M{"id": id}
-	update := bson.M{"$set": updatedPost}
-
-	result := collection.FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After))
-	if result.Err() != nil {
-		if result.Err() == mongo.ErrNoDocuments {
-			return nil, nil
-		}
-		log.Fatalf("Failed to update post: %v", result.Err())
-		return nil, result.Err()
-	}
-
-	var post entity.Post
-	err := result.Decode(&post)
+	_, err := repo.collection.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		log.Fatalf("Failed to decode updated post: %v", err)
-		return nil, err
+		log.Printf("Error updating post: %v\n", err)
+		return err
 	}
 
-	return &post, nil
+	return nil
 }
 
-func (r *repo) Delete(id int) error {
-	collection := r.client.Database(db.DatabaseName).Collection(db.CollectionName)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (repo *MongoDBPostRepository) Delete(id primitive.ObjectID) error {
+	filter := bson.D{{"_id", id}}
 
-	filter := bson.M{"id": id}
-	_, err := collection.DeleteOne(ctx, filter)
+	_, err := repo.collection.DeleteOne(context.TODO(), filter)
 	if err != nil {
-		log.Fatalf("Failed to delete post: %v", err)
+		log.Printf("Error deleting post: %v\n", err)
 		return err
 	}
 
